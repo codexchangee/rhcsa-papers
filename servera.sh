@@ -20,43 +20,30 @@ echo "root:atenorth" | chpasswd
 yum remove -y bzip2 || true
 
 echo "Installing httpd..."
-yum install -y httpd || dnf install -y httpd
+yum install -y httpd
 
-echo "Stopping httpd if running..."
-systemctl stop httpd 2>/dev/null || true
+echo "Starting and enabling httpd..."
+systemctl start httpd
+systemctl enable httpd
+
 
 CONF_FILE="/etc/httpd/conf/httpd.conf"
 BACKUP_FILE="/etc/httpd/conf/httpd.conf.bak"
-cp -f "$CONF_FILE" "$BACKUP_FILE"
+cp "$CONF_FILE" "$BACKUP_FILE"
+echo "Updating Listen directives from port 80 to 82 in all httpd configuration files..."
+grep -rl "Listen 80" /etc/httpd | xargs sed -i 's/Listen 80/Listen 82/g'
 
-echo "Updating Listen directives from port 80 to 82 in httpd configuration..."
-grep -rl "^[[:space:]]*Listen[[:space:]]\+80[[:space:]]*$" /etc/httpd | xargs sed -i 's/^[[:space:]]*Listen[[:space:]]\+80[[:space:]]*$/Listen 82/g' || true
-grep -qE '^[[:space:]]*Listen[[:space:]]+82[[:space:]]*$' "$CONF_FILE" || echo "Listen 82" >> "$CONF_FILE"
+echo "Restarting httpd service..."
+systemctl restart httpd
 
-# Open firewall for 82 (ignore if firewalld not running)
-if systemctl is-active --quiet firewalld; then
-    echo "Opening firewall for HTTP(80) and port 82..."
-    firewall-cmd --permanent --add-service=http || true
-    firewall-cmd --permanent --add-port=82/tcp || true
-    firewall-cmd --reload || true
-fi
-
-# Allow httpd to bind port 82 if SELinux is enforcing
-if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" = "Enforcing" ]; then
-    echo "SELinux Enforcing: allowing httpd to bind port 82..."
-    yum -y install policycoreutils-python-utils policycoreutils-python 2>/dev/null || true
-    if command -v semanage >/dev/null 2>&1; then
-        semanage port -a -t http_port_t -p tcp 82 2>/dev/null || semanage port -m -t http_port_t -p tcp 82 || true
-    fi
-fi
-
-echo "Starting and enabling httpd..."
-systemctl enable httpd
-if ! systemctl restart httpd; then
+if systemctl is-active --quiet httpd; then
+    echo "Port successfully changed to 82 and httpd restarted."
+else
     echo "Warning: httpd failed to restart. Reverting to backup..."
-    cp -f "$BACKUP_FILE" "$CONF_FILE"
-    systemctl restart httpd || true
+    cp "$BACKUP_FILE" "$CONF_FILE"
+    systemctl restart httpd
 fi
+
 
 echo "Creating files in /var/www/html..."
 mkdir -p /var/www/html
