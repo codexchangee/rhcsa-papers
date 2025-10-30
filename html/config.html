@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Red Hat Test Exam</title>
+<script>
+(function () {
+  const DURATION_SECONDS = 90 * 60; // 1h 30m = 5400 sec
+  const STORAGE_KEY = "examEndTime_90m_v2"; // new key so old value won't interfere
+
+  function startTimer(durationSeconds, display) {
+    let endTime = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+    const now = Date.now();
+
+    // Reset endTime if:
+    // 1) nothing stored
+    // 2) already expired
+    // 3) leftover from older longer timer
+    if (
+      !endTime ||
+      endTime <= now ||
+      endTime - now > durationSeconds * 1000 + 5000
+    ) {
+      endTime = now + durationSeconds * 1000;
+      localStorage.setItem(STORAGE_KEY, String(endTime));
+    }
+
+    function updateTimer() {
+      const remainingMs = Math.max(0, endTime - Date.now());
+      const remaining = Math.floor(remainingMs / 1000);
+
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+
+      display.textContent =
+        hours + ":" + (minutes < 10 ? "0" : "") + minutes;
+
+      // Last 15 minutes in red
+      if (remaining <= 15 * 60) {
+        display.classList.add("red");
+      } else {
+        display.classList.remove("red");
+      }
+
+      if (remaining > 0) {
+        setTimeout(updateTimer, 1000);
+      } else {
+        display.textContent = "0:00";
+      }
+    }
+
+    updateTimer();
+  }
+
+  window.onload = function () {
+    const display = document.querySelector("#countdown");
+    if (display) {
+      startTimer(DURATION_SECONDS, display);
+    }
+  };
+})();
+</script>
+<style>
+    
+    h1 {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 25px;
+      margin-bottom: 10px;
+    }
+    table {
+      border-collapse: collapse;
+      border: 2px solid #000;
+      margin: 15px 10px;
+    }
+    table th, table td {
+      padding: 15px 8px 10px 10px;
+      text-align: left;
+    }
+    
+    .highlight {
+      font-weight: bold;
+    }
+    .italic {
+      font-style: italic;
+    }
+  </style>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #ffffcc; /* closer match to screenshot */
+      display: flex;
+    }
+    .sidebar {
+      width: 220px;
+      background-color: #ffffcc; /* match background */
+      border-right: 2px solid #ccc;
+      text-align: center;
+      padding: 20px;
+    }
+    .sidebar img {
+      width: 120px;
+    }
+    .exam-title {
+      font-weight: bold;
+      margin: 20px 0;
+    }
+    .timer {
+      font-weight: bold;
+      font-size: 18px;
+      margin-top: 20px;
+    }
+    .timer.red {
+      color: red;
+    }
+    .lang-link {
+      margin-top: 20px;
+      display: block;
+      font-size: 12px;
+      color: blue;
+      text-decoration: underline;
+    }
+    /* Main content */
+    .content {
+      flex: 1;
+      padding: 20px;
+    }
+    h3 {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+    .task-list {
+      margin: 10px 0 30px 0;
+      border-top: 1px solid #666;
+      padding-top: 10px;
+    }
+    .task {
+      margin: 5px 0;
+    }
+    .task a {
+      color: blue;
+      text-decoration: underline;
+    }
+    .btn {
+      margin-top: 10px;
+      padding: 6px 10px;
+      border: 1px solid #666;
+      background: #fff;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="exam-title">Red Hat<br />Test Exam</div>
+    <div class="timer">Time remaining: <span id="countdown">1:30</span></div>
+    <a href="#" class="lang-link">Select Language</a>
+    <p>Task 1 of 21</p>
+  </div>
+
+  
+		
+     
+    <div class="container">
+    <h1>Important configuration information</h1>
+
+    <p>
+      During the exam you will be working with several virtual systems in addition to the desktop 
+      at which you are seated. You do not have root access to the desktop system however you have 
+      full root access to the virtual systems.
+    </p>
+
+    <h2>System Information</h2>
+    <p>You will be working with the following virtual systems for this exam:</p>
+
+    <table>
+      <tr>
+        <th>System</th>
+	<th>&nbsp;&nbsp;</th>
+        <th>IP Address</th>
+      </tr>
+      <tr>
+        <td>node1.domain.example.com</td>
+	<td></td>
+        <td>172.25.250.10</td>
+      </tr>
+      <tr>
+        <td>node2.domain.example.com</td>
+	<td></td>
+        <td>172.25.250.11</td>
+      </tr>
+    </table>
+
+    <p>
+      The systems you are working with are members of the DNS domain 
+      <span class="highlight">domain.example.com</span>. 
+      All systems in this domain are in the 
+      <span class="highlight">172.24.14.0/255.255.255.0</span> subnet and all systems in that 
+      subnet are in <span class="highlight">domain.example.com</span>.
+    </p>
+
+    <p>
+      The IP addresses listed for these systems are the addresses that 
+      <span class="highlight">should</span> be assigned to the system. 
+      You may find it necessary to configure the network for one or both of your systems in order 
+      to reach it at the address listed above.
+    </p>
+
+    <h2>Account Information</h2>
+    <p>The root password for <span class="highlight">node1</span> has been set to 
+      <span class="highlight italic"><b>“redhat”</b></span></p>
+
+    <p>
+      Unless otherwise specified, this will be the password you use to access other systems and 
+      services. Also, unless otherwise specified, you should use this password for any accounts 
+      that you create or for any services that require a password be set.
+    </p>
+
+    <h2>Registry Access</h2>
+    <p>Some of the items in this exam may require container images from a registry.</p>
+	<p> Use these credentials for login </p>
+	<p> username : admin </p>
+	<p> password : admin123 </p>
+
+    <h2>Other Information</h2>
+    <p>
+      You may access your exam systems via SSH or via the console (described below). 
+      Note that SSH access may be dependent on your solving of other exam items.
+    </p>
+  </div>
+
+
+</body>
+</html>

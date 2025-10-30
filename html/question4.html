@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Red Hat Test Exam</title>
+<script>
+(function () {
+  const DURATION_SECONDS = 90 * 60; // 1h 30m = 5400 sec
+  const STORAGE_KEY = "examEndTime_90m_v2"; // new key so old value won't interfere
+
+  function startTimer(durationSeconds, display) {
+    let endTime = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+    const now = Date.now();
+
+    // Reset endTime if:
+    // 1) nothing stored
+    // 2) already expired
+    // 3) leftover from older longer timer
+    if (
+      !endTime ||
+      endTime <= now ||
+      endTime - now > durationSeconds * 1000 + 5000
+    ) {
+      endTime = now + durationSeconds * 1000;
+      localStorage.setItem(STORAGE_KEY, String(endTime));
+    }
+
+    function updateTimer() {
+      const remainingMs = Math.max(0, endTime - Date.now());
+      const remaining = Math.floor(remainingMs / 1000);
+
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+
+      display.textContent =
+        hours + ":" + (minutes < 10 ? "0" : "") + minutes;
+
+      // Last 15 minutes in red
+      if (remaining <= 15 * 60) {
+        display.classList.add("red");
+      } else {
+        display.classList.remove("red");
+      }
+
+      if (remaining > 0) {
+        setTimeout(updateTimer, 1000);
+      } else {
+        display.textContent = "0:00";
+      }
+    }
+
+    updateTimer();
+  }
+
+  window.onload = function () {
+    const display = document.querySelector("#countdown");
+    if (display) {
+      startTimer(DURATION_SECONDS, display);
+    }
+  };
+})();
+</script>
+
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #ffffcc; /* closer match to screenshot */
+      display: flex;
+    }
+    .sidebar {
+      width: 220px;
+      background-color: #ffffcc; /* match background */
+      border-right: 2px solid #ccc;
+      text-align: center;
+      padding: 20px;
+    }
+    .sidebar img {
+      width: 120px;
+    }
+    .exam-title {
+      font-weight: bold;
+      margin: 20px 0;
+    }
+    .timer {
+      font-weight: bold;
+      font-size: 18px;
+      margin-top: 20px;
+    }
+    .timer.red {
+      color: red;
+    }
+    .lang-link {
+      margin-top: 20px;
+      display: block;
+      font-size: 12px;
+      color: blue;
+      text-decoration: underline;
+    }
+    /* Main content */
+    .content {
+      flex: 1;
+      padding: 20px;
+    }
+    h3 {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+    .task-list {
+      margin: 10px 0 30px 0;
+      border-top: 1px solid #666;
+      padding-top: 10px;
+    }
+    .task {
+      margin: 5px 0;
+    }
+    .task a {
+      color: blue;
+      text-decoration: underline;
+    }
+    .btn {
+      margin-top: 10px;
+      padding: 6px 10px;
+      border: 1px solid #666;
+      background: #fff;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="exam-title">Red Hat<br />Test Exam</div>
+    <div class="timer">Time remaining: <span id="countdown">1:30</span></div>
+    <a href="#" class="lang-link">Select Language</a>
+    <p>Task 4 of 21</p>
+  </div>
+  <div class="content">
+    <h2>Configure Selinux</h2>
+    <p><label><input type="radio">The http service serve non-standard 82 port for your machine</label></br> 
+	<label><input type="radio">The system is not able to connect to httpd service at port 82, fix the debug issue </label></br> 
+	<label><input type="radio">To store the HTML files under /var/www/html directory don’t have change to it.</label></br> 
+	<label><input type="radio">It should be accessible at port 82 and should start at boot time.</label></br>
+	<label><input type="radio">Verify that the page can be accessed locally using command : <i>curl http://localhost:82/file1</i></label></br></p>
+
+<center><button onclick="history.back()">Back</button></center>
+    <hr><center>
+    
+    <button>Provide feedback on this item</button></center>
+  </div>
+</body>
+</html>
