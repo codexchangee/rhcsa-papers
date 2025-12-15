@@ -102,12 +102,12 @@ if systemctl is-active --quiet firewalld; then
   firewall-cmd --reload || true
 fi
 
-mkdir -p /ourhome/remoteuserx
-chmod 777 /ourhome/remoteuserx
+mkdir -p /ourhome/remoteuser2
+chmod 777 /ourhome/remoteuser2
 
 # Avoid duplicate export line
-grep -qE '^[[:space:]]*/ourhome/remoteuserx[[:space:]]' /etc/exports \
-  || echo "/ourhome/remoteuserx *(rw,sync)" >> /etc/exports
+grep -qE '^[[:space:]]*/ourhome/remoteuser2[[:space:]]' /etc/exports \
+  || echo "/ourhome/remoteuser2 *(rw,sync)" >> /etc/exports
 
 exportfs -rv || true
 systemctl restart nfs-server || true
