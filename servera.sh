@@ -54,7 +54,7 @@ printf "Welcome to RHCSA Examination\n" > /var/www/html/file3
 chcon -t user_home_t /var/www/html/file1 || true
 
 echo "Creating specified users..."
-for username in remoteuser12 andrew simone; do
+for username in remoteuser2 andrew simone; do
     id "$username" &>/dev/null || useradd "$username"
     echo "$username:atenorth" | chpasswd
 done
