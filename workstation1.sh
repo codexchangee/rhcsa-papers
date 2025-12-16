@@ -1,47 +1,61 @@
 #!/bin/bash
-set -Eeuo pipefail
+set -u
 
-REPO_URL="https://github.com/codexchangee/rhcsa-papers.git"
-BRANCH="main"
+bash <<'WRAP'
+#####################################
+# CONFIG
+#####################################
+WORK_URL="https://raw.githubusercontent.com/codexchangee/rhcsa-papers/main/workstation.sh"
+SERVERA_URL="https://raw.githubusercontent.com/codexchangee/rhcsa-papers/main/servera.sh"
+SERVERB_URL="https://raw.githubusercontent.com/codexchangee/rhcsa-papers/main/serverb.sh"
 
-SSH_USER="root"
-SERVERA="servera.lab.example.com"
-SERVERB="serverb.lab.example.com"
+HOST_A="servera"
+HOST_B="serverb"
 
-fatal() {
-  echo "❌ ERROR: $1"
-  exit 1
-}
+TMPDIR="$(mktemp -d /tmp/runall.XXXX)"
+trap 'echo "Cleaning $TMPDIR"; rm -rf "$TMPDIR"' EXIT
 
-run_remote() {
-  local host="$1"
-  local script="$2"
+#####################################
+echo "[run-all] Downloading workstation script..."
+#####################################
+curl -fsSL "$WORK_URL" -o "$TMPDIR/work.orig" \
+  || { echo "Failed to download workstation script"; exit 1; }
 
-  echo "=============================="
-  echo " Running $(basename "$script") on $host"
-  echo "=============================="
+#####################################
+echo "[run-all] Neutralizing reboot and self-delete..."
+#####################################
+sed -e 's/^[[:space:]]*reboot/# reboot disabled/' \
+    -e 's/^[[:space:]]*shutdown -r.*/# shutdown disabled/' \
+    "$TMPDIR/work.orig" > "$TMPDIR/work.safe"
 
-  scp -o StrictHostKeyChecking=no \
-      "$script" "$SSH_USER@$host:/root/remote_run.sh" \
-      || fatal "SCP failed for $host"
+chmod +x "$TMPDIR/work.safe"
 
-  ssh -o StrictHostKeyChecking=no \
-      "$SSH_USER@$host" \
-      "chmod +x /root/remote_run.sh && /root/remote_run.sh" \
-      || fatal "Execution failed on $host"
+#####################################
+echo "[run-all] Running workstation script (safe)..."
+#####################################
+sudo bash "$TMPDIR/work.safe" \
+  2>&1 | tee "$TMPDIR/workstation.log" \
+  || echo "[run-all] workstation finished with non-zero status"
 
-  echo "✅ $host completed"
-}
+#####################################
+echo "[run-all] Running servera script on $HOST_A..."
+#####################################
+ssh -o StrictHostKeyChecking=no root@"$HOST_A" \
+  'bash -s' < <(curl -fsSL "$SERVERA_URL") \
+  2>&1 | tee "$TMPDIR/servera.log" \
+  || echo "[run-all] servera finished with errors"
 
-WORKDIR="$(mktemp -d)"
-trap 'rm -rf "$WORKDIR"' EXIT
+#####################################
+echo "[run-all] Running serverb script on $HOST_B..."
+#####################################
+ssh -o StrictHostKeyChecking=no root@"$HOST_B" \
+  'bash -s' < <(curl -fsSL "$SERVERB_URL") \
+  2>&1 | tee "$TMPDIR/serverb.log" \
+  || echo "[run-all] serverb finished with errors"
 
-git clone --depth 1 -b "$BRANCH" "$REPO_URL" "$WORKDIR/repo" \
-  || fatal "Git clone failed"
+#####################################
+echo "[run-all] ALL TASKS TRIGGERED"
+#####################################
+WRAP
 
-chmod +x "$WORKDIR/repo/servera.sh" "$WORKDIR/repo/serverb.sh"
-
-run_remote "$SERVERA" "$WORKDIR/repo/servera.sh"
-run_remote "$SERVERB" "$WORKDIR/repo/serverb.sh"
-
-echo "🎉 BOTH NODES CONFIGURED SUCCESSFULLY"
+exit 0
