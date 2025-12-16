@@ -138,4 +138,5 @@ run_remote() {
 run_remote "$SERVERA_HOST" "$WORKDIR/repo/servera.sh"
 run_remote "$SERVERB_HOST" "$WORKDIR/repo/serverb.sh"
 
+
 echo "All done"
