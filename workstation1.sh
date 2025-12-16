@@ -1,22 +1,27 @@
 #!/bin/bash
 set -Eeuo pipefail
 
+################################
+# CONFIGURATION
+################################
 REPO_URL="https://github.com/codexchangee/rhcsa-papers.git"
 BRANCH="main"
 
 HTML_DIR="/var/www/html"
 
-SERVER_SSH_USER="root"
+SSH_USER="root"
 SERVERA_HOST="servera.lab.example.com"
 SERVERB_HOST="serverb.lab.example.com"
 
+################################
+# FUNCTIONS
+################################
 pkg_mgr() {
   command -v dnf >/dev/null 2>&1 && echo dnf || echo yum
 }
 
 need_pkg() {
-  local p="$1"
-  rpm -q "$p" &>/dev/null || $PKG -y install "$p"
+  rpm -q "$1" &>/dev/null || $PKG -y install "$1"
 }
 
 enable_now() {
@@ -28,35 +33,48 @@ fatal() {
   exit 1
 }
 
+wait_for_host() {
+  local host="$1"
+  echo "⏳ Waiting for $host to come back online..."
+
+  until ssh -o BatchMode=yes \
+            -o ConnectTimeout=5 \
+            -o StrictHostKeyChecking=no \
+            "$SSH_USER@$host" "echo ONLINE" &>/dev/null
+  do
+    sleep 5
+  done
+
+  echo "✅ $host is online"
+}
+
 run_remote() {
   local host="$1"
   local script="$2"
 
-  echo "=================================="
+  echo "======================================"
   echo " Running $(basename "$script") on $host"
-  echo "=================================="
+  echo "======================================"
 
-  echo "[1] Checking SSH connectivity..."
-  ssh -o BatchMode=yes -o ConnectTimeout=5 \
-      -o StrictHostKeyChecking=no \
-      "$SERVER_SSH_USER@$host" "echo SSH_OK" \
-      || fatal "SSH FAILED for $host"
+  ssh -o BatchMode=yes -o StrictHostKeyChecking=no \
+      "$SSH_USER@$host" "echo SSH_OK" \
+      || fatal "SSH failed for $host"
 
-  echo "[2] Copying script..."
   scp -o StrictHostKeyChecking=no \
-      "$script" \
-      "$SERVER_SSH_USER@$host:/root/remote_run.sh" \
-      || fatal "SCP FAILED for $host"
+      "$script" "$SSH_USER@$host:/root/remote_run.sh" \
+      || fatal "SCP failed for $host"
 
-  echo "[3] Executing script..."
   ssh -o StrictHostKeyChecking=no \
-      "$SERVER_SSH_USER@$host" \
+      "$SSH_USER@$host" \
       "chmod +x /root/remote_run.sh && /root/remote_run.sh" \
-      || fatal "Execution FAILED on $host"
+      || true   # reboot will kill SSH, this is EXPECTED
 
-  echo "✅ $host completed"
+  echo "➡ Script triggered on $host"
 }
 
+################################
+# START
+################################
 PKG="$(pkg_mgr)"
 
 echo "[1/7] Installing base packages..."
@@ -116,7 +134,13 @@ echo "[6/7] Validating node scripts..."
 chmod +x "$WORKDIR/repo/servera.sh" "$WORKDIR/repo/serverb.sh"
 
 echo "[7/7] Executing node scripts..."
+
+# ---- NODE 1 ----
 run_remote "$SERVERA_HOST" "$WORKDIR/repo/servera.sh"
+wait_for_host "$SERVERA_HOST"
+
+# ---- NODE 2 ----
 run_remote "$SERVERB_HOST" "$WORKDIR/repo/serverb.sh"
+wait_for_host "$SERVERB_HOST"
 
 echo "ALL NODES CONFIGURED SUCCESSFULLY"
