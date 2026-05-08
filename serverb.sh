@@ -1,133 +1,43 @@
 #!/bin/bash
-set -euo pipefail
-
-########################################
-# Hostname Configuration
-########################################
 
 current_hostname=$(hostname)
-new_hostname="machine2.exam.com"
+new_hostname="primary.net2.example.com"
 
 if [ "$current_hostname" != "$new_hostname" ]; then
-    echo "Changing hostname to $new_hostname"
     hostnamectl set-hostname "$new_hostname"
-
-    sed -i "s/$current_hostname/$new_hostname/g" /etc/hosts || true
+    sed -i "s/$current_hostname/$new_hostname/g" /etc/hosts
 fi
 
-########################################
-# Root Password
-########################################
-
-echo "Setting root password..."
 echo "root:password" | chpasswd
 
-########################################
-# Install GUI if Missing
-########################################
-
-echo "Checking GUI installation..."
+echo "Creating specified users..."
+for username in bammbamm; do
+    id "$username" &>/dev/null || useradd "$username"
+    echo "$username:atenorth" | chpasswd
 
 if ! rpm -qa | grep -q "gnome-session"; then
-    echo "Installing Server with GUI..."
-    dnf groupinstall -y "Server with GUI" || true
-else
-    echo "GUI already installed."
+    dnf group install "Server with GUI" -y --nobest
 fi
 
-########################################
-# Disk Partitioning
-########################################
+echo -e "o\nn\np\n1\n\n+200M\nw" | fdisk /dev/sdb
 
-echo "Creating partition on /dev/sdb..."
+partprobe
 
-if [ ! -b /dev/sdb1 ]; then
+pvcreate /dev/sdb1
+vgcreate myvg /dev/sdb1
+lvcreate -L 100M -n home myvg
 
-cat <<EOF | fdisk /dev/sdb
-o
-n
-p
-1
-
-+200M
-w
-EOF
-
-fi
-
-partprobe || true
-sleep 2
-
-########################################
-# LVM Configuration
-########################################
-
-echo "Creating Physical Volume..."
-
-if ! pvs | grep -q "/dev/sdb1"; then
-    pvcreate /dev/sdb1
-fi
-
-echo "Creating Volume Group..."
-
-if ! vgs | grep -q "myvg"; then
-    vgcreate myvg /dev/sdb1
-fi
-
-echo "Creating Logical Volume..."
-
-if ! lvs | grep -q "home"; then
-    lvcreate -L 100M -n home myvg
-fi
-
-########################################
-# Filesystem Creation
-########################################
-
-echo "Creating ext4 filesystem..."
-
-if ! blkid /dev/myvg/home | grep -q ext4; then
-    mkfs.ext4 -F /dev/myvg/home
-fi
-
-########################################
-# Mount Configuration
-########################################
+mkfs.ext4 /dev/myvg/home
 
 mkdir -p /home
+mount /dev/myvg/home /home
 
-if ! mount | grep -q "/home"; then
-    mount /dev/myvg/home /home
-fi
-
-grep -q "/dev/myvg/home" /etc/fstab || \
 echo "/dev/myvg/home /home ext4 defaults 0 0" >> /etc/fstab
 
-########################################
-# Kernel Reinstallation
-########################################
+dnf reinstall kernel-core -y
+dracut -f --regenerate-all
+grub2-mkconfig -o /boot/grub2/grub.cfg
 
-echo "Reinstalling kernel-core..."
-
-dnf reinstall -y kernel-core || true
-
-echo "Regenerating initramfs..."
-
-dracut -f --regenerate-all || true
-
-echo "Updating grub configuration..."
-
-grub2-mkconfig -o /boot/grub2/grub.cfg || true
-
-########################################
-# Cleanup
-########################################
-
-history -c || true
-
-echo "====================================="
-echo "serverb configuration completed"
-echo "====================================="
-
-# Optional reboot
-# reboot
+history -c
+rm -- "$0"
+reboot
